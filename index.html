@@ -99,11 +99,11 @@ a{color:inherit;text-decoration:none}
   display:inline-block;font-size:.85rem;font-weight:600;
   letter-spacing:.15em;text-transform:uppercase;color:var(--accent);
   background:var(--accent-light);padding:6px 16px;border-radius:100px;
-  margin-bottom:20px;
+  margin-bottom:20px;margin-left:-7px;
 }
 .hero-title{
   font-size:clamp(2.8rem,5.5vw,4.5rem);font-weight:900;
-  line-height:1.08;letter-spacing:-.03em;margin-bottom:24px;
+  line-height:1.08;letter-spacing:-.03em;margin-bottom:24px;margin-left:-3px;
 }
 .hero-title em{
   font-style:normal;
@@ -321,9 +321,8 @@ a{color:inherit;text-decoration:none}
 .lightbox-content{
   max-width:92vw;max-height:88vh;border-radius:var(--radius);
   box-shadow:0 32px 80px rgba(0,0,0,.5);
-  transform:scale(.92);transition:transform .35s var(--ease);
+  transition:transform .25s var(--ease);
 }
-.lightbox.open .lightbox-content{transform:scale(1)}
 .lightbox-close{
   position:absolute;top:24px;right:32px;
   width:48px;height:48px;border-radius:50%;border:none;
@@ -827,17 +826,57 @@ document.addEventListener('dblclick', e => {
 /* ===== Lightbox ===== */
 const lightbox = document.getElementById('lightbox');
 const lightboxImg = document.getElementById('lightbox-img');
+let lbZoom = 1, lbX = 0, lbY = 0, lbDragging = false, lbDragged = false, lbStartX, lbStartY, lbOrigX, lbOrigY;
 
+function lbUpdate(smooth) {
+  lightboxImg.style.transition = smooth ? 'transform .25s cubic-bezier(.4,0,.2,1)' : 'none';
+  lightboxImg.style.transform = 'scale(' + lbZoom + ') translate(' + lbX + 'px,' + lbY + 'px)';
+  lightboxImg.style.cursor = lbDragging ? 'grabbing' : (lbZoom > 1 ? 'grab' : 'zoom-in');
+}
 function openLightbox(src) {
   lightboxImg.src = src;
+  lbZoom = 1; lbX = 0; lbY = 0;
+  lbUpdate(false);
   lightbox.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 function closeLightbox() {
   lightbox.classList.remove('open');
   document.body.style.overflow = '';
+  lbZoom = 1; lbX = 0; lbY = 0;
+  lbUpdate(false);
 }
+/* Ctrl + 滚轮缩放 */
+lightbox.addEventListener('wheel', e => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  lbZoom += e.deltaY < 0 ? 0.25 : -0.25;
+  lbZoom = Math.max(0.5, Math.min(5, lbZoom));
+  if (lbZoom <= 1) { lbX = 0; lbY = 0; }
+  lbUpdate(true);
+}, { passive: false });
+/* 拖动 */
+lightboxImg.addEventListener('mousedown', e => {
+  if (lbZoom <= 1) return;
+  e.preventDefault();
+  lbDragging = true; lbDragged = false;
+  lbStartX = e.clientX; lbStartY = e.clientY;
+  lbOrigX = lbX; lbOrigY = lbY;
+  lbUpdate(false);
+});
+document.addEventListener('mousemove', e => {
+  if (!lbDragging) return;
+  lbDragged = true;
+  lbX = lbOrigX + (e.clientX - lbStartX);
+  lbY = lbOrigY + (e.clientY - lbStartY);
+  lbUpdate(false);
+});
+document.addEventListener('mouseup', () => {
+  if (lbDragging) { lbDragging = false; lbUpdate(false); }
+});
 lightbox.addEventListener('click', e => {
+  if (lbDragged) { lbDragged = false; return; }
+  if (lbZoom > 1) { lbZoom = 1; lbX = 0; lbY = 0; lbUpdate(true); return; }
   if (e.target === lightbox || e.target.classList.contains('lightbox-close')) closeLightbox();
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
